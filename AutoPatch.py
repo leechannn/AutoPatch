@@ -1,7 +1,7 @@
 import sys
 
 
-def distinguish_lang(source: str) -> str:
+def distinguish_lang() -> str:
     #Assume that the language used has already been entered.
     if int(sys.argv[1]) == 0:
         used_lang = "PHP"
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     with open("code.txt", "r") as f:
         data = f.read()
 
-    lang = distinguish_lang(data)
+    lang = distinguish_lang()
     vuln_type = get_vuln_type()
     location_index = find_insert_index(data, lang)
 
