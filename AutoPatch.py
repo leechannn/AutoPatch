@@ -51,7 +51,7 @@ def get_vuln_type() -> str:
     return vuln_name
 
 
-def get_patch_info(lang, vuln_type):
+def get_patch_info(lang: str, vuln_type: str) -> Patch:
     with open('./vulnList/' + vuln_type + "-" + lang + ".txt", 'r') as f:
         lines = f.readlines()
 
@@ -78,10 +78,9 @@ def get_patch_info(lang, vuln_type):
     return vuln
 
 
-def find_insert_index(code: str, frame: str) -> int:
-    index = 0
-
-    return index
+def insert_func(code: str, func: str) -> str:
+    index = code.find('\n')
+    return code[:index] + func + code[index:]
 
 
 if __name__ == '__main__':
@@ -95,8 +94,10 @@ if __name__ == '__main__':
     lang = distinguish_lang()
     vuln_type = get_vuln_type()
     vuln_patch_info = get_patch_info(lang, vuln_type)
-    '''location_index = find_insert_index(data, lang)
+    data = insert_func(data, vuln_patch_info.func)
 
+    print(data)
+    '''
     with open("./vulnList/" + vuln_type + "-" + lang + ".txt", "r") as f:
         patch_code = f.read()
 
