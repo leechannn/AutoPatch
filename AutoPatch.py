@@ -1,24 +1,25 @@
 import sys
 import re
 
+
 class Patch:
     def __init__(self):
         self.func = ''
         self.reg = ''
         self.func_name = ''
 
-    def set_func(self, func):
+    def set_func(self, func: str):
         self.func = func
 
-    def set_reg(self, reg):
+    def set_reg(self, reg: str):
         self.reg = reg.strip()
 
-    def set_func_name(self, func_name):
+    def set_func_name(self, func_name: str):
         self.func_name = func_name.strip()
 
 
 def distinguish_lang() -> str:
-    #Assume that the language used has already been entered.
+    # Assume that the language used has already been entered.
     if int(sys.argv[1]) == 0:
         used_lang = 'PHP'
     elif int(sys.argv[1]) == 1:
@@ -89,16 +90,22 @@ def get_patch_info(lang: str, vuln_type: str) -> Patch:
 
 def insert_func(code: str, func: str) -> str:
     index = code.find('\n')
-    return code[:index] + func + code[index:]
+    return code[:index] + '\n' + func + code[index:]
 
 
-def correct_name(code: str, reg: str, func_name: str):
-    match = re.search(reg, code)
-    start_index = match.start()
-    end_index = match.end()
-    patched = match.group(1) + ' = ' + func_name + '(' + match.group(2) + ');'
-    result = code[:start_index] + patched + code[end_index:]
-    print(result)
+def patch_func_name_type(code: str, reg: str, func_name: str):
+    matches = re.finditer(reg, code)
+    offset = 0
+    for match in matches:
+        start_index = match.start() + offset
+        end_index = match.end() + offset
+        before_len = end_index - start_index
+        patched = match.group(1) + ' = ' + func_name + '(' + match.group(2) + ');'
+        after_len = len(patched)
+        offset = after_len - before_len
+        code = code[:start_index] + patched + code[end_index:]
+        print(code)
+    return code
 
 
 if __name__ == '__main__':
@@ -112,12 +119,7 @@ if __name__ == '__main__':
     lang = distinguish_lang()
     vuln_type = get_vuln_type()
     vuln_patch_info = get_patch_info(lang, vuln_type)
-    correct_name(data, vuln_patch_info.reg, vuln_patch_info.func_name)
-    #data = insert_func(data, vuln_patch_info.func)
+    func_inserted = insert_func(data, vuln_patch_info.func)
+    result = patch_func_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
+    #print(result)
 
-    '''
-    with open('./vulnList/' + vuln_type + '-' + lang + '.txt', 'r') as f:
-        patch_code = f.read()
-
-    result = data[:location_index] + patch_code + data[location_index:]
-    print(result)'''
