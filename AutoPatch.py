@@ -6,13 +6,17 @@ class Patch:
     def __init__(self):
         self.func = ''
         self.reg = ''
+        self.reg_list = []
         self.func_name = ''
 
     def set_func(self, func: str):
         self.func = func
 
     def set_reg(self, reg: str):
-        self.reg = reg.strip()
+        self.reg = reg
+
+    def set_reg_list(self, reg_str: str):
+        self.reg_list.append(reg_str.strip())
 
     def set_func_name(self, func_name: str):
         self.func_name = func_name.strip()
@@ -72,19 +76,18 @@ def get_patch_info(lang: str, vuln_type: str) -> Patch:
             vuln.set_func(tmp_str)
             text_type = ''
             tmp_str = ''
-        elif line[:10] == '%%%%%%%%%%' and text_type == 'DECR':
-            vuln.set_reg(tmp_str)
-            text_type = ''
-            tmp_str = ''
         elif line[:10] == '%%%%%%%%%%' and text_type == 'NAME':
             vuln.set_func_name(tmp_str)
             text_type = ''
             tmp_str = ''
+        elif line[:10] == '%%%%%%%%%%' and text_type == 'REGE':
+            text_type = ''
+            tmp_str = ''
+        elif text_type == 'REGE':
+            vuln.set_reg_list(line)
         else:
             tmp_str = tmp_str + line
 
-    # print(vuln.func)
-    # print(vuln.reg)
     return vuln
 
 
@@ -107,7 +110,17 @@ def patch_func_name_type(code: str, reg: str, func_name: str):
     return code
 
 
-if __name__ == '__main__':
+def find_reg_type(vuln: Patch, data: str) -> Patch:
+    for reg in vuln.reg_list:
+        match = re.search(reg, data)
+        if match is None:
+            continue
+        vuln.set_reg(reg)
+        break
+    return vuln
+
+
+def vulnerability_patch():
     if len(sys.argv) != 3:
         print('Usage: python AutoPatch.py [Language] [vulnerability type]')
         sys.exit()
@@ -118,7 +131,12 @@ if __name__ == '__main__':
     lang = distinguish_lang()
     vuln_type = get_vuln_type()
     vuln_patch_info = get_patch_info(lang, vuln_type)
+    vuln_patch_info = find_reg_type(vuln_patch_info, data)
     func_inserted = insert_func(data, vuln_patch_info.func)
+    # 정규표현식에 따라 패치 다르게 구현
     result = patch_func_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
     print(result)
 
+
+if __name__ == '__main__':
+    vulnerability_patch()
