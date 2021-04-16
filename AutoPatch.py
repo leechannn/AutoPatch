@@ -102,9 +102,8 @@ def patch_func_name_type(code: str, reg: str, func_name: str):
         before_len = end_index - start_index
         patched = match.group(1) + ' = ' + func_name + '(' + match.group(2) + ');'
         after_len = len(patched)
-        offset = after_len - before_len
+        offset = offset + after_len - before_len
         code = code[:start_index] + patched + code[end_index:]
-        print(code)
     return code
 
 
@@ -121,5 +120,5 @@ if __name__ == '__main__':
     vuln_patch_info = get_patch_info(lang, vuln_type)
     func_inserted = insert_func(data, vuln_patch_info.func)
     result = patch_func_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
-    #print(result)
+    print(result)
 
