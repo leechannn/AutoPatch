@@ -7,6 +7,7 @@ class Patch:
         self.func = ''
         self.reg = ''
         self.reg_list = []
+        self.patch_type = ''
         self.func_name = ''
 
     def set_func(self, func: str):
@@ -15,11 +16,23 @@ class Patch:
     def set_reg(self, reg: str):
         self.reg = reg
 
-    def set_reg_list(self, reg_str: str):
-        self.reg_list.append(reg_str.strip())
+    def set_reg_list(self, reg_dic: list):
+        self.reg_list.append(reg_dic)
+
+    def set_patch_type(self, patch_type: str):
+        self.patch_type = patch_type
 
     def set_func_name(self, func_name: str):
         self.func_name = func_name.strip()
+
+    def find_reg_type(self, data: str):
+        for reg in self.reg_list:
+            match = re.search(reg[0], data)
+            if match is None:
+                continue
+            self.set_reg(reg[0])
+            self.set_patch_type(reg[1])
+            break
 
 
 def distinguish_lang() -> str:
@@ -84,7 +97,8 @@ def get_patch_info(lang: str, vuln_type: str) -> Patch:
             text_type = ''
             tmp_str = ''
         elif text_type == 'REGE':
-            vuln.set_reg_list(line)
+            params = line.split('%')
+            vuln.set_reg_list([params[0].strip(), params[1].strip()])
         else:
             tmp_str = tmp_str + line
 
@@ -96,7 +110,7 @@ def insert_func(code: str, func: str) -> str:
     return code[:index] + '\n' + func + code[index:]
 
 
-def patch_func_name_type(code: str, reg: str, func_name: str):
+def patch_func_decr_name_type(code: str, reg: str, func_name: str):
     matches = re.finditer(reg, code)
     offset = 0
     for match in matches:
@@ -110,14 +124,20 @@ def patch_func_name_type(code: str, reg: str, func_name: str):
     return code
 
 
-def find_reg_type(vuln: Patch, data: str) -> Patch:
-    for reg in vuln.reg_list:
-        match = re.search(reg, data)
-        if match is None:
-            continue
-        vuln.set_reg(reg)
-        break
-    return vuln
+def patch_func_name_type(code: str, reg:str, func_name: str):
+    matches = re.finditer(reg, code)
+    offset = 0
+    for match in matches:
+        start_index = match.start() + offset
+        end_index = match.end() + offset
+        before_len = end_index - start_index
+        input_start = start_index + code[start_index:end_index].find(match.group(2))
+        input_end = input_start + len(match.group(2))
+        patched = func_name + '(' + match.group(2) + ')'
+        after_len = before_len + len(patched) - len(match.group(2))
+        offset = offset + after_len - before_len
+        code = code[:input_start] + patched + code[input_end:]
+    return code
 
 
 def vulnerability_patch():
@@ -131,10 +151,15 @@ def vulnerability_patch():
     lang = distinguish_lang()
     vuln_type = get_vuln_type()
     vuln_patch_info = get_patch_info(lang, vuln_type)
-    vuln_patch_info = find_reg_type(vuln_patch_info, data)
+    vuln_patch_info.find_reg_type(data)
     func_inserted = insert_func(data, vuln_patch_info.func)
-    # 정규표현식에 따라 패치 다르게 구현
-    result = patch_func_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
+    if vuln_patch_info.patch_type == 'func_decr_name':
+        result = patch_func_decr_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
+    elif vuln_patch_info.patch_type == 'func_name':
+        result = patch_func_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
+    else:
+        print('can\'t find patch type')
+        exit()
     print(result)
 
 
