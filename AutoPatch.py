@@ -117,7 +117,7 @@ def patch_func_decr_name_type(code: str, reg: str, func_name: str):
         start_index = match.start() + offset
         end_index = match.end() + offset
         before_len = end_index - start_index
-        patched = match.group(1) + ' = ' + func_name + '(' + match.group(2) + ');'
+        patched = match.group(1) + ' = ' + func_name + match.group(2) + ');'
         after_len = len(patched)
         offset = offset + after_len - before_len
         code = code[:start_index] + patched + code[end_index:]
@@ -133,7 +133,7 @@ def patch_func_name_type(code: str, reg:str, func_name: str):
         before_len = end_index - start_index
         input_start = start_index + code[start_index:end_index].find(match.group(2))
         input_end = input_start + len(match.group(2))
-        patched = func_name + '(' + match.group(2) + ')'
+        patched = func_name + match.group(2) + ')'
         after_len = before_len + len(patched) - len(match.group(2))
         offset = offset + after_len - before_len
         code = code[:input_start] + patched + code[input_end:]
