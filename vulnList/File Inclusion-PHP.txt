@@ -1,0 +1,7 @@
+%%%%%%%%%%REGE
+\w(.*(\$_(GET|POST|REQUEST)\[\s*'.*'\s*\]).*);%func_name
+%%%%%%%%%%REGE
+
+%%%%%%%%%%NAME
+preg_replace('[^\w-_.]', '', 
+%%%%%%%%%%NAME

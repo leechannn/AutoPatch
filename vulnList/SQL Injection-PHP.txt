@@ -1,0 +1,9 @@
+
+%%%%%%%%%%REGE
+\$[\w]*\s?=\s?mysqli_query\((.*),%some_var
+\w(.*(\$_(GET|POST|REQUEST)\[\s*'.*'\s*\]).*);%func_var_name
+%%%%%%%%%%REGE
+
+%%%%%%%%%%NAME
+mysqli_real_escape_string(
+%%%%%%%%%%NAME
