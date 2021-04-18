@@ -7,8 +7,10 @@ class Patch:
         self.func = ''
         self.reg = ''
         self.reg_list = []
+        self.reg_some_var = ''
         self.patch_type = ''
         self.func_name = ''
+        self.some_var = ''
 
     def set_func(self, func: str):
         self.func = func
@@ -25,14 +27,29 @@ class Patch:
     def set_func_name(self, func_name: str):
         self.func_name = func_name.strip()
 
+    def set_reg_some_var(self):
+        for reg in self.reg_list:
+            if reg[1] != 'some_var':
+                continue
+            self.reg_some_var = reg[0]
+            return
+
     def find_reg_type(self, data: str):
         for reg in self.reg_list:
+            if reg[1] != 'func_decr_name' and reg[1] != 'func_name' and reg[1] != 'func_var_name':
+                continue
             match = re.search(reg[0], data)
             if match is None:
                 continue
             self.set_reg(reg[0])
             self.set_patch_type(reg[1])
             break
+
+    def find_some_var(self, data: str):
+        match = re.search(self.reg_some_var, data)
+        if match is None:
+            return
+        self.some_var = match.group(1)
 
 
 def distinguish_lang() -> str:
@@ -124,7 +141,7 @@ def patch_func_decr_name_type(code: str, reg: str, func_name: str):
     return code
 
 
-def patch_func_name_type(code: str, reg:str, func_name: str):
+def patch_func_name_type(code: str, reg: str, func_name: str):
     matches = re.finditer(reg, code)
     offset = 0
     for match in matches:
@@ -134,6 +151,22 @@ def patch_func_name_type(code: str, reg:str, func_name: str):
         input_start = start_index + code[start_index:end_index].find(match.group(2))
         input_end = input_start + len(match.group(2))
         patched = func_name + match.group(2) + ')'
+        after_len = before_len + len(patched) - len(match.group(2))
+        offset = offset + after_len - before_len
+        code = code[:input_start] + patched + code[input_end:]
+    return code
+
+
+def patch_func_var_name_type(code: str, reg: str, func_name: str, some_var: str):
+    matches = re.finditer(reg, code)
+    offset = 0
+    for match in matches:
+        start_index = match.start() + offset
+        end_index = match.end() + offset
+        before_len = end_index - start_index
+        input_start = start_index + code[start_index:end_index].find(match.group(2))
+        input_end = input_start + len(match.group(2))
+        patched = func_name + some_var + ', ' + match.group(2) + ')'
         after_len = before_len + len(patched) - len(match.group(2))
         offset = offset + after_len - before_len
         code = code[:input_start] + patched + code[input_end:]
@@ -152,11 +185,15 @@ def vulnerability_patch():
     vuln_type = get_vuln_type()
     vuln_patch_info = get_patch_info(lang, vuln_type)
     vuln_patch_info.find_reg_type(data)
+    vuln_patch_info.set_reg_some_var()
+    vuln_patch_info.find_some_var(data)
     func_inserted = insert_func(data, vuln_patch_info.func)
     if vuln_patch_info.patch_type == 'func_decr_name':
         result = patch_func_decr_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
     elif vuln_patch_info.patch_type == 'func_name':
         result = patch_func_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
+    elif vuln_patch_info.patch_type == 'func_var_name':
+        result = patch_func_var_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name, vuln_patch_info.some_var)
     else:
         print('can\'t find patch type')
         exit()
