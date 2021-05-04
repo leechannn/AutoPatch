@@ -11,6 +11,7 @@ class Patch:
         self.patch_type = ''
         self.func_name = ''
         self.some_var = ''
+        self.describ = ''
 
     def set_func(self, func: str):
         self.func = func
@@ -26,6 +27,9 @@ class Patch:
 
     def set_func_name(self, func_name: str):
         self.func_name = func_name.strip()
+
+    def set_patch_describ(self, describ: str):
+        self.describ = describ.strip()
 
     def set_reg_some_var(self):
         for reg in self.reg_list:
@@ -46,9 +50,9 @@ class Patch:
             break
 
     def find_some_var(self, data: str):
-        match = re.search(self.reg_some_var, data)
-        if match is None:
+        if self.reg_some_var is '':
             return
+        match = re.search(self.reg_some_var, data)
         self.some_var = match.group(1)
 
 
@@ -111,6 +115,10 @@ def get_patch_info(lang: str, vuln_type: str) -> Patch:
             text_type = ''
             tmp_str = ''
         elif line[:10] == '%%%%%%%%%%' and text_type == 'REGE':
+            text_type = ''
+            tmp_str = ''
+        elif line[:10] == '%%%%%%%%%%' and text_type == 'PRNT':
+            vuln.set_patch_describ(tmp_str)
             text_type = ''
             tmp_str = ''
         elif text_type == 'REGE':
@@ -195,8 +203,7 @@ def vulnerability_patch():
     elif vuln_patch_info.patch_type == 'func_var_name':
         result = patch_func_var_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name, vuln_patch_info.some_var)
     else:
-        print('can\'t find patch type')
-        exit()
+        result = vuln_patch_info.describ
     print(result)
 
 
