@@ -40,7 +40,7 @@ class Patch:
 
     def find_reg_type(self, data: str):
         for reg in self.reg_list:
-            if reg[1] != 'func_decr_name' and reg[1] != 'func_name' and reg[1] != 'func_var_name':
+            if reg[1] != 'func_decr_name' and reg[1] != 'func_name' and reg[1] != 'func_var_name' and reg[1] != 'simple_sub':
                 continue
             match = re.search(reg[0], data)
             if match is None:
@@ -50,7 +50,7 @@ class Patch:
             break
 
     def find_some_var(self, data: str):
-        if self.reg_some_var is '':
+        if self.reg_some_var == '':
             return
         match = re.search(self.reg_some_var, data)
         self.some_var = match.group(1)
@@ -63,16 +63,12 @@ def distinguish_lang() -> str:
     elif int(sys.argv[1]) == 1:
         used_lang = 'ASP.NET'
     elif int(sys.argv[1]) == 2:
-        used_lang = 'Ruby'
-    elif int(sys.argv[1]) == 3:
         used_lang = 'Java'
-    elif int(sys.argv[1]) == 4:
-        used_lang = 'Scala'
-    elif int(sys.argv[1]) == 5:
+    elif int(sys.argv[1]) == 3:
         used_lang = 'Python'
-    elif int(sys.argv[1]) == 6:
+    elif int(sys.argv[1]) == 4:
         used_lang = 'JavaScript'
-    elif int(sys.argv[1]) == 7:
+    elif int(sys.argv[1]) == 5:
         used_lang = 'Perl'
     else:
         print('Error: Undefined language type')
@@ -181,6 +177,20 @@ def patch_func_var_name_type(code: str, reg: str, func_name: str, some_var: str)
     return code
 
 
+def patch_simple_sub_type(code: str, reg: str, sub_str: str):
+    matches = re.finditer(reg, code)
+    offset = 0
+    for match in matches:
+        start_index = match.start() + offset
+        end_index = match.end() + offset
+        before_len = end_index - start_index
+        patched = code[start_index:end_index].replace(match.group(1), sub_str)
+        after_len = before_len + len(sub_str) - len(match.group(1))
+        offset = offset + after_len - before_len
+        code = code[:start_index] + patched + code[end_index:]
+    return code
+
+
 def vulnerability_patch():
     if len(sys.argv) != 3:
         print('Usage: python AutoPatch.py [Language] [vulnerability type]')
@@ -202,6 +212,8 @@ def vulnerability_patch():
         result = patch_func_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
     elif vuln_patch_info.patch_type == 'func_var_name':
         result = patch_func_var_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name, vuln_patch_info.some_var)
+    elif vuln_patch_info.patch_type == 'simple_sub':
+        result = patch_simple_sub_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
     else:
         result = vuln_patch_info.describ
     print(result)
