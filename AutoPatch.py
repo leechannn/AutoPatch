@@ -9,9 +9,9 @@ class Patch:
         self.reg_list = []
         self.reg_some_var = ''
         self.patch_type = ''
-        self.func_name = ''
         self.some_var = ''
         self.describ = ''
+        self.lists = []
 
     def set_func(self, func: str):
         self.func = func
@@ -25,9 +25,6 @@ class Patch:
     def set_patch_type(self, patch_type: str):
         self.patch_type = patch_type
 
-    def set_func_name(self, func_name: str):
-        self.func_name = func_name.strip()
-
     def set_patch_describ(self, describ: str):
         self.describ = describ.strip()
 
@@ -38,9 +35,12 @@ class Patch:
             self.reg_some_var = reg[0]
             return
 
+    def set_list(self, lists: list):
+        self.lists = lists
+
     def find_reg_type(self, data: str):
         for reg in self.reg_list:
-            if reg[1] != 'func_decr_name' and reg[1] != 'func_name' and reg[1] != 'func_var_name' and reg[1] != 'simple_sub' and reg[1] != 'func_name_end':
+            if reg[1] != 'func_decr_name' and reg[1] != 'func_name' and reg[1] != 'func_var_name' and reg[1] != 'simple_sub' and reg[1] != 'func_name_end' and reg[1] != 'func_list2':
                 continue
             match = re.search(reg[0], data)
             if match is None:
@@ -98,6 +98,7 @@ def get_patch_info(lang: str, vuln_type: str) -> Patch:
     text_type = ''
     vuln = Patch()
     tmp_str = ''
+    params = []
 
     for line in lines:
         if line[:10] == '%%%%%%%%%%' and text_type == '':
@@ -106,20 +107,25 @@ def get_patch_info(lang: str, vuln_type: str) -> Patch:
             vuln.set_func(tmp_str)
             text_type = ''
             tmp_str = ''
-        elif line[:10] == '%%%%%%%%%%' and text_type == 'NAME':
-            vuln.set_func_name(tmp_str)
-            text_type = ''
-            tmp_str = ''
         elif line[:10] == '%%%%%%%%%%' and text_type == 'REGE':
             text_type = ''
             tmp_str = ''
+            params = []
         elif line[:10] == '%%%%%%%%%%' and text_type == 'PRNT':
             vuln.set_patch_describ(tmp_str)
             text_type = ''
             tmp_str = ''
+        elif line[:10] == '%%%%%%%%%%' and text_type == 'LIST':
+            text_type = ''
+            tmp_str = ''
+            vuln.set_list(params)
+            params = []
         elif text_type == 'REGE':
             params = line.split('%')
             vuln.set_reg_list([params[0].strip(), params[1].strip()])
+        elif text_type == 'LIST':
+            line = line.strip()
+            params.append(line)
         else:
             tmp_str = tmp_str + line
 
@@ -131,39 +137,7 @@ def insert_func(code: str, func: str) -> str:
     return code[:index] + '\n' + func + code[index:]
 
 
-def patch_2list_type(code: str, reg: str, args_front: list, args_rear: list):
-    matches = re.finditer(reg, code)
-    offset = 0
-    front = "".join(args_front)
-    rear = "".join(args_rear)
-    for match in matches:
-        start_index = match.start() + offset
-        end_index = match.end() + offset
-        before_len = end_index - start_index
-        input_start = start_index + code[start_index:end_index].find(match.group(2))
-        input_end = input_start + len(match.group(2))
-        patched = front + match.group(2) + rear
-        after_len = before_len + len(patched) - len(match.group(2))
-        offset = offset + after_len - before_len
-        code = code[:input_start] + patched + code[input_end:]
-    return code
-
-
-def patch_func_decr_name_type(code: str, reg: str, func_name: str):
-    matches = re.finditer(reg, code)
-    offset = 0
-    for match in matches:
-        start_index = match.start() + offset
-        end_index = match.end() + offset
-        before_len = end_index - start_index
-        patched = match.group(1) + ' = ' + func_name + match.group(2) + ');'
-        after_len = len(patched)
-        offset = offset + after_len - before_len
-        code = code[:start_index] + patched + code[end_index:]
-    return code
-
-
-def patch_func_name_type(code: str, reg: str, func_name: str):
+def patch_list2_type(code: str, reg: str, lists: list):
     matches = re.finditer(reg, code)
     offset = 0
     for match in matches:
@@ -172,23 +146,7 @@ def patch_func_name_type(code: str, reg: str, func_name: str):
         before_len = end_index - start_index
         input_start = start_index + code[start_index:end_index].find(match.group(2))
         input_end = input_start + len(match.group(2))
-        patched = func_name + match.group(2) + ')'
-        after_len = before_len + len(patched) - len(match.group(2))
-        offset = offset + after_len - before_len
-        code = code[:input_start] + patched + code[input_end:]
-    return code
-
-
-def patch_func_name_end_type(code: str, reg: str, func_name: str):
-    matches = re.finditer(reg, code)
-    offset = 0
-    for match in matches:
-        start_index = match.start() + offset
-        end_index = match.end() + offset
-        before_len = end_index - start_index
-        input_start = start_index + code[start_index:end_index].find(match.group(2))
-        input_end = input_start + len(match.group(2))
-        patched = match.group(2) + func_name
+        patched = lists[0] + match.group(2) + lists[1]
         after_len = before_len + len(patched) - len(match.group(2))
         offset = offset + after_len - before_len
         code = code[:input_start] + patched + code[input_end:]
@@ -211,15 +169,15 @@ def patch_func_var_name_type(code: str, reg: str, func_name: str, some_var: str)
     return code
 
 
-def patch_simple_sub_type(code: str, reg: str, sub_str: str):
+def patch_simple_sub_type(code: str, reg: str, lists: list):
     matches = re.finditer(reg, code)
     offset = 0
     for match in matches:
         start_index = match.start() + offset
         end_index = match.end() + offset
         before_len = end_index - start_index
-        patched = code[start_index:end_index].replace(match.group(1), sub_str)
-        after_len = before_len + len(sub_str) - len(match.group(1))
+        patched = code[start_index:end_index].replace(match.group(1), lists[0])
+        after_len = before_len + len(lists[0]) - len(match.group(1))
         offset = offset + after_len - before_len
         code = code[:start_index] + patched + code[end_index:]
     return code
@@ -240,16 +198,12 @@ def vulnerability_patch():
     vuln_patch_info.set_reg_some_var()
     vuln_patch_info.find_some_var(data)
     func_inserted = insert_func(data, vuln_patch_info.func)
-    if vuln_patch_info.patch_type == 'func_decr_name':
-        result = patch_func_decr_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
-    elif vuln_patch_info.patch_type == 'func_name':
-        result = patch_func_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
-    elif vuln_patch_info.patch_type == 'func_name_end':
-        result = patch_func_name_end_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
-    elif vuln_patch_info.patch_type == 'func_var_name':
-        result = patch_func_var_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name, vuln_patch_info.some_var)
-    elif vuln_patch_info.patch_type == 'simple_sub':
-        result = patch_simple_sub_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name)
+    '''if vuln_patch_info.patch_type == 'func_var_name':
+        result = patch_func_var_name_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.func_name, vuln_patch_info.some_var)'''
+    if vuln_patch_info.patch_type == 'simple_sub':
+        result = patch_simple_sub_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.lists)
+    elif vuln_patch_info.patch_type == 'func_list2':
+        result = patch_list2_type(func_inserted, vuln_patch_info.reg, vuln_patch_info.lists)
     else:
         result = vuln_patch_info.describ
     print(result)
